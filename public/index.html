@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Search</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>GitHub Search</h1>
+        <form action="/search" method="GET">
+            <label for="username">Enter GitHub Username:</label>
+            <input type="text" id="username" name="username" required>
+
+
+            <!-- Button to view contributions -->
+            <button type="button" class="view-btn" onclick="viewContributions()">View Contributions</button>
+
+            <!-- Button to view repositories -->
+            <button type="button" class="view-btn" onclick="viewRepositories()">View Repositories</button>
+        </form>
+        <div id="loadingMessage">Please wait...</div>
+    </div>
+    <div id="contributionsChartContainer">
+        <!-- The chart will be rendered here -->
+    </div>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Repository Name</th>
+                <th>Creation Date</th>
+                <th>Repository Link</th>
+            </tr>
+        </thead>
+        <tbody id="repoTableBody">
+        </tbody>
+    </table>
+
+    <script>
+        (function () {
+            let data;
+
+            // JavaScript functions to handle button clicks
+            function viewContributions() {
+                const username = document.getElementById('username').value;
+                const loadingMessage = document.getElementById('loadingMessage');
+                loadingMessage.style.display = 'block';
+                fetch(`/contribution-graph/${username}`)
+                    .then(response => response.json())
+                    .then(responseData => {
+
+                        data = responseData;
+                        console.log(data);
+
+                        updateChart();
+
+
+                        // Hide loading message after loading is complete
+                        loadingMessage.style.display = 'none';
+
+                    });
+
+            }
+
+            function viewRepositories() {
+                if (data) {
+                    console.log(data);
+                }
+
+                const username = document.getElementById('username').value;
+                const loadingMessage = document.getElementById('loadingMessage');
+
+                fetch(`/repositories/${username}`)
+                    .then(response => response.json())
+                    .then(responseData => {
+                        data = responseData;
+                        console.log(data);
+                        displayRepositories()
+                        loadingMessage.style.display = 'none';
+
+                    });
+
+            }
+
+            function updateChart() {
+                const contributionData = data.weeks.flatMap(week => week.contributionDays);
+
+                const trace = {
+                    x: contributionData.map(day => new Date(day.date).toLocaleString('default', { month: 'short', day: 'numeric' })), // Month and date
+                    y: contributionData.map(day => day.contributionCount),
+                    type: 'bar',
+                    marker: {
+                        color: 'rgba(75, 192, 192, 0.7)',
+                    },
+                };
+
+                const layout = {
+                    title: 'GitHub Contribution Chart for the Year',
+                    xaxis: {
+                        title: 'Date',
+                        tickangle: -45,
+                    },
+                    yaxis: {
+                        title: 'Contributions',
+                    },
+                };
+
+                // Using Plotly.newPlot to render the chart 
+                Plotly.newPlot('contributionsChartContainer', [trace], layout);
+            }
+
+            function displayRepositories() {
+                const tableBody = document.getElementById('repoTableBody');
+                tableBody.innerHTML = ''; // Clear existing rows
+
+                data.forEach(repo => {
+                    const row = tableBody.insertRow();
+
+                    const nameCell = row.insertCell(0);
+                    nameCell.textContent = repo.name;
+
+                    const creationDateCell = row.insertCell(1);
+                    creationDateCell.textContent = repo.created_at;
+
+                    const linkCell = row.insertCell(2);
+                    const link = document.createElement('a');
+                    link.href = repo.html_url;
+                    link.target = '_blank';
+                    link.textContent = repo.html_url;
+                    linkCell.appendChild(link);
+                });
+            }
+
+            // Exposing functions globally
+            window.viewContributions = viewContributions;
+            window.viewRepositories = viewRepositories;
+        })();
+    </script>
+
+</body>
+
+</html>
